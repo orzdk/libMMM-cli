@@ -56,7 +56,7 @@ void setup(){
 
   Serial.begin(9600);
   delay(3000);
-  
+ 
   lib3m_AddUserUnit(evm, stsCONTINUE, stsSTART, 0, stsCONTINUE, stsCONTINUE);
   lib3m_AddUserUnit(gvo, 20         , 0       , 0, stsNOTEOFF , stsNOTEON);
 
