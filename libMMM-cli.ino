@@ -3,6 +3,10 @@ typedef union  {
      uint8_t  packet[4];
 } midiPacket_t;
 
+#define stsd (pk.packet[1] & 0xF0) 
+#define gatelow userUnits[u]->tGate.gate.lower
+#define gatehigh userUnits[u]->tGate.gate.upper
+
 #include <libMMM.h>
 
 void dumpPck(midiPacket_t *pck){
@@ -13,27 +17,32 @@ void dumpPck(midiPacket_t *pck){
 }
 
 struct userUnit {
-    uint8_t mUnitIdx;
+    uint8_t cmdCode;
     transformerParms_t tParms; 
+    transformerGate_t tGate; 
 };
 
 userUnit* userUnits[16];
 uint8_t userUnitCount = 0;
 
-void lib3m_AddUserUnit(uint8_t mUnitIdx, uint8_t x, uint8_t y, uint8_t z)
+void lib3m_AddUserUnit(uint8_t cmdCode, uint8_t x, uint8_t y, uint8_t z, uint8_t g_low, uint8_t g_high)
 {
     userUnit* uu = (userUnit*)malloc(sizeof(userUnit)); 
-    uu->mUnitIdx = mUnitIdx;
+    uu->cmdCode = cmdCode;
+    uu->tGate.gate.lower = g_low;
+    uu->tGate.gate.upper = g_high;
     uu->tParms.x = x;
     uu->tParms.y = y;
     uu->tParms.z = z;
     userUnits[userUnitCount++] = uu;   
 }
 
-void lib3m_ProcessEvent(midiPacket_t &pck)
+void lib3m_ProcessEvent(midiPacket_t &pk)
 {            
     for (int u=0;u<userUnitCount;u++){
-        if (!userUnits[u]->tParms.z||stsd==userUnits[u]->tParms.z)(transformerCommands[userUnits[u]->mUnitIdx].fnFn)(&pck, userUnits[u]->tParms);
+        if ( BETWEEN(stsd,gatelow,gatehigh) || BETWEEN(pk.packet[1],gatelow,gatehigh) ){      
+           (transformerCommands[userUnits[u]->cmdCode].fnFn)(&pk, userUnits[u]->tParms);
+        }
     }
 } 
 
@@ -48,8 +57,8 @@ void setup(){
   Serial.begin(9600);
   delay(3000);
   
-  lib3m_AddUserUnit(evm, stsCONTINUE, stsSTART, 0);
-  lib3m_AddUserUnit(gvo, 20, 0, 9);
+  lib3m_AddUserUnit(evm, stsCONTINUE, stsSTART, 0, stsCONTINUE, stsCONTINUE);
+  lib3m_AddUserUnit(gvo, 20         , 0       , 0, stsNOTEOFF , stsNOTEON);
 
   midiPacket_t pk = { .packet = { 0x0, stsCONTINUE, 0x0, 0x0 } };
   test(pk);
